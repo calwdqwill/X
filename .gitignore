@@ -1,0 +1,32 @@
+# Secrets
+.env
+cookies.json
+
+# Database
+*.db
+*.db-journal
+
+# Logs
+logs/
+*.log
+
+# Drafts (user-generated content)
+drafts/*.json
+
+# Python
+__pycache__/
+*.pyc
+*.pyo
+*.egg-info/
+.venv/
+venv/
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# OS
+.DS_Store
+Thumbs.db
