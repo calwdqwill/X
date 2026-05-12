@@ -1,0 +1,203 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>X Hybrid Poster — Дашборд</title>
+    <link rel="stylesheet" href="/static/style.css">
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>🚀 X Hybrid Poster</h1>
+            <p class="subtitle">Генерация и публикация постов в X/Twitter</p>
+        </header>
+
+        <!-- Панель управления -->
+        <section class="panel controls">
+            <h2>⚡ Управление</h2>
+            <div class="btn-row">
+                <button id="btn-generate" class="btn btn-primary">
+                    <span class="spinner" id="spinner-gen"></span>
+                    Сгенерировать черновики
+                </button>
+                <button id="btn-generate-force" class="btn btn-secondary">
+                    <span class="spinner" id="spinner-force"></span>
+                    Форсировать (все твиты)
+                </button>
+                <button id="btn-clean" class="btn btn-danger">
+                    Очистить базу
+                </button>
+            </div>
+            <div id="status-msg" class="status"></div>
+        </section>
+
+        <!-- Редактор черновиков -->
+        <section class="panel editor">
+            <h2>✏️ Редактор черновиков</h2>
+            <p class="hint">Отредактируй посты перед публикацией. Максимум 280 символов каждый.</p>
+
+            <div class="post-card">
+                <label>Пост 1 <span class="counter" id="counter-0">0 / 280</span></label>
+                <textarea id="post-0" rows="4" maxlength="300"></textarea>
+            </div>
+            <div class="post-card">
+                <label>Пост 2 <span class="counter" id="counter-1">0 / 280</span></label>
+                <textarea id="post-1" rows="4" maxlength="300"></textarea>
+            </div>
+            <div class="post-card">
+                <label>Пост 3 <span class="counter" id="counter-2">0 / 280</span></label>
+                <textarea id="post-2" rows="4" maxlength="300"></textarea>
+            </div>
+
+            <button id="btn-save" class="btn btn-save">💾 Сохранить черновик</button>
+        </section>
+
+        <!-- Публикация -->
+        <section class="panel publish">
+            <h2>📤 Публикация</h2>
+            <div class="btn-row">
+                <button id="btn-test" class="btn btn-secondary">
+                    <span class="spinner" id="spinner-test"></span>
+                    Тестовая публикация (dry-run)
+                </button>
+                <button id="btn-live" class="btn btn-live">
+                    <span class="spinner" id="spinner-live"></span>
+                    🚀 Живая публикация
+                </button>
+            </div>
+            <div id="publish-msg" class="status"></div>
+        </section>
+
+        <!-- Логи -->
+        <section class="panel logs">
+            <h2>📋 Логи</h2>
+            <pre id="log-panel">Ожидание подключения к логам...</pre>
+        </section>
+    </div>
+
+    <script>
+        const api = async (url, method = 'GET', body = null) => {
+            const opts = { method, headers: { 'Content-Type': 'application/json' } };
+            if (body) opts.body = JSON.stringify(body);
+            const res = await fetch(url, opts);
+            return res.json();
+        };
+
+        const setLoading = (id, loading) => {
+            const btn = document.getElementById(id);
+            const spin = document.getElementById(id.replace('btn-', 'spinner-'));
+            btn.disabled = loading;
+            if (spin) spin.style.display = loading ? 'inline-block' : 'none';
+        };
+
+        const setStatus = (id, text, isError = false) => {
+            const el = document.getElementById(id);
+            el.textContent = text;
+            el.className = 'status ' + (isError ? 'error' : 'success');
+        };
+
+        // Счётчики символов
+        [0, 1, 2].forEach(i => {
+            const ta = document.getElementById(`post-${i}`);
+            const counter = document.getElementById(`counter-${i}`);
+            ta.addEventListener('input', () => {
+                const len = ta.value.length;
+                counter.textContent = `${len} / 280`;
+                counter.className = 'counter' + (len > 280 ? ' over' : len > 250 ? ' warn' : '');
+            });
+        });
+
+        // Загрузить черновик при старте
+        async function loadDraft() {
+            const data = await api('/api/draft');
+            if (data.ok && data.draft.posts) {
+                data.draft.posts.forEach((text, i) => {
+                    const ta = document.getElementById(`post-${i}`);
+                    if (ta) {
+                        ta.value = text;
+                        ta.dispatchEvent(new Event('input'));
+                    }
+                });
+            }
+        }
+        loadDraft();
+
+        // Генерация
+        document.getElementById('btn-generate').addEventListener('click', async () => {
+            setLoading('btn-generate', true);
+            setStatus('status-msg', 'Генерация запущена...');
+            const res = await api('/api/generate', 'POST');
+            setLoading('btn-generate', false);
+            if (res.ok) {
+                setStatus('status-msg', '✅ Черновик готов!');
+                await loadDraft();
+            } else {
+                setStatus('status-msg', '❌ ' + (res.error || 'Ошибка'), true);
+            }
+        });
+
+        // Форсированная генерация
+        document.getElementById('btn-generate-force').addEventListener('click', async () => {
+            setLoading('btn-generate-force', true);
+            setStatus('status-msg', 'Форсированная генерация...');
+            const res = await api('/api/generate-force', 'POST');
+            setLoading('btn-generate-force', false);
+            if (res.ok) {
+                setStatus('status-msg', '✅ Черновик готов (форс)!');
+                await loadDraft();
+            } else {
+                setStatus('status-msg', '❌ ' + (res.error || 'Ошибка'), true);
+            }
+        });
+
+        // Сохранить черновик
+        document.getElementById('btn-save').addEventListener('click', async () => {
+            const posts = [0, 1, 2].map(i => document.getElementById(`post-${i}`).value);
+            const res = await api('/api/draft', 'POST', { posts });
+            setStatus('status-msg', res.ok ? '💾 Черновик сохранён' : '❌ Ошибка сохранения', !res.ok);
+        });
+
+        // Тестовая публикация
+        document.getElementById('btn-test').addEventListener('click', async () => {
+            setLoading('btn-test', true);
+            setStatus('publish-msg', 'Тестовая публикация...');
+            const res = await api('/api/publish-test', 'POST');
+            setLoading('btn-test', false);
+            setStatus('publish-msg', res.ok ? '✅ Тест пройден (ничего не опубликовано)' : '❌ ' + res.error, !res.ok);
+        });
+
+        // Живая публикация
+        document.getElementById('btn-live').addEventListener('click', async () => {
+            if (!confirm('⚠️ ВНИМАНИЕ\n\nЭто живая публикация!\nПосты уйдут в твой аккаунт @0x_cryptodex.\n\nПродолжить?')) {
+                return;
+            }
+            setLoading('btn-live', true);
+            setStatus('publish-msg', 'Публикация...');
+            const res = await api('/api/publish', 'POST');
+            setLoading('btn-live', false);
+            setStatus('publish-msg', res.ok ? '🚀 Опубликовано!' : '❌ ' + res.error, !res.ok);
+        });
+
+        // Очистка базы
+        document.getElementById('btn-clean').addEventListener('click', async () => {
+            if (!confirm('Удалить ВСЕ посты и insights из базы?')) return;
+            const res = await api('/api/clean-db', 'POST');
+            setStatus('status-msg', res.ok ? '🗑️ База очищена' : '❌ ' + res.error, !res.ok);
+        });
+
+        // SSE — логи
+        const logPanel = document.getElementById('log-panel');
+        const evtSource = new EventSource('/api/logs/stream');
+        evtSource.onmessage = (e) => {
+            if (e.data.trim()) {
+                logPanel.textContent += e.data + '\n';
+                logPanel.scrollTop = logPanel.scrollHeight;
+            }
+        };
+        evtSource.onerror = () => {
+            logPanel.textContent += '\n[Соединение с логами потеряно]\n';
+        };
+    </script>
+</body>
+</html>
