@@ -127,13 +127,18 @@
         document.getElementById('btn-generate').addEventListener('click', async () => {
             setLoading('btn-generate', true);
             setStatus('status-msg', 'Генерация запущена...');
-            const res = await api('/api/generate', 'POST');
-            setLoading('btn-generate', false);
-            if (res.ok) {
-                setStatus('status-msg', '✅ Черновик готов!');
-                await loadDraft();
-            } else {
-                setStatus('status-msg', '❌ ' + (res.error || 'Ошибка'), true);
+            try {
+                const res = await api('/api/generate', 'POST');
+                if (res.ok) {
+                    setStatus('status-msg', '✅ Черновик готов!');
+                    await loadDraft();
+                } else {
+                    setStatus('status-msg', '❌ ' + (res.error || 'Ошибка'), true);
+                }
+            } catch (e) {
+                setStatus('status-msg', '❌ Сервер недоступен. Обнови страницу (F5).', true);
+            } finally {
+                setLoading('btn-generate', false);
             }
         });
 
@@ -141,30 +146,44 @@
         document.getElementById('btn-generate-force').addEventListener('click', async () => {
             setLoading('btn-generate-force', true);
             setStatus('status-msg', 'Форсированная генерация...');
-            const res = await api('/api/generate-force', 'POST');
-            setLoading('btn-generate-force', false);
-            if (res.ok) {
-                setStatus('status-msg', '✅ Черновик готов (форс)!');
-                await loadDraft();
-            } else {
-                setStatus('status-msg', '❌ ' + (res.error || 'Ошибка'), true);
+            try {
+                const res = await api('/api/generate-force', 'POST');
+                if (res.ok) {
+                    setStatus('status-msg', '✅ Черновик готов (форс)!');
+                    await loadDraft();
+                } else {
+                    setStatus('status-msg', '❌ ' + (res.error || 'Ошибка'), true);
+                }
+            } catch (e) {
+                setStatus('status-msg', '❌ Сервер недоступен. Обнови страницу (F5).', true);
+            } finally {
+                setLoading('btn-generate-force', false);
             }
         });
 
         // Сохранить черновик
         document.getElementById('btn-save').addEventListener('click', async () => {
-            const posts = [0, 1, 2].map(i => document.getElementById(`post-${i}`).value);
-            const res = await api('/api/draft', 'POST', { posts });
-            setStatus('status-msg', res.ok ? '💾 Черновик сохранён' : '❌ Ошибка сохранения', !res.ok);
+            try {
+                const posts = [0, 1, 2].map(i => document.getElementById(`post-${i}`).value);
+                const res = await api('/api/draft', 'POST', { posts });
+                setStatus('status-msg', res.ok ? '💾 Черновик сохранён' : '❌ Ошибка сохранения', !res.ok);
+            } catch (e) {
+                setStatus('status-msg', '❌ Сервер недоступен', true);
+            }
         });
 
         // Тестовая публикация
         document.getElementById('btn-test').addEventListener('click', async () => {
             setLoading('btn-test', true);
             setStatus('publish-msg', 'Тестовая публикация...');
-            const res = await api('/api/publish-test', 'POST');
-            setLoading('btn-test', false);
-            setStatus('publish-msg', res.ok ? '✅ Тест пройден (ничего не опубликовано)' : '❌ ' + res.error, !res.ok);
+            try {
+                const res = await api('/api/publish-test', 'POST');
+                setStatus('publish-msg', res.ok ? '✅ Тест пройден (ничего не опубликовано)' : '❌ ' + res.error, !res.ok);
+            } catch (e) {
+                setStatus('publish-msg', '❌ Сервер недоступен. Обнови страницу (F5).', true);
+            } finally {
+                setLoading('btn-test', false);
+            }
         });
 
         // Живая публикация
@@ -174,16 +193,25 @@
             }
             setLoading('btn-live', true);
             setStatus('publish-msg', 'Публикация...');
-            const res = await api('/api/publish', 'POST');
-            setLoading('btn-live', false);
-            setStatus('publish-msg', res.ok ? '🚀 Опубликовано!' : '❌ ' + res.error, !res.ok);
+            try {
+                const res = await api('/api/publish', 'POST');
+                setStatus('publish-msg', res.ok ? '🚀 Опубликовано!' : '❌ ' + res.error, !res.ok);
+            } catch (e) {
+                setStatus('publish-msg', '❌ Сервер недоступен. Обнови страницу (F5).', true);
+            } finally {
+                setLoading('btn-live', false);
+            }
         });
 
         // Очистка базы
         document.getElementById('btn-clean').addEventListener('click', async () => {
             if (!confirm('Удалить ВСЕ посты и insights из базы?')) return;
-            const res = await api('/api/clean-db', 'POST');
-            setStatus('status-msg', res.ok ? '🗑️ База очищена' : '❌ ' + res.error, !res.ok);
+            try {
+                const res = await api('/api/clean-db', 'POST');
+                setStatus('status-msg', res.ok ? '🗑️ База очищена' : '❌ ' + res.error, !res.ok);
+            } catch (e) {
+                setStatus('status-msg', '❌ Сервер недоступен', true);
+            }
         });
 
         // SSE — логи
